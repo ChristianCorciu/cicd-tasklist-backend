@@ -20,8 +20,7 @@ pipeline {
             }
         }
 
-        // On saute les étapes npm locales. 
-        // Le 'docker build' ci-dessous va exécuter le 'npm ci' et 'npm run build' de manière isolée dans le conteneur.
+        // Le 'docker build' exécute le 'npm ci' et le build de manière isolée dans le conteneur.
         stage('Build Docker image') {
             steps {
                 sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG -t $IMAGE_NAME:latest .'
@@ -37,10 +36,7 @@ pipeline {
             }
             post {
                 always {
-                    // On force l'archivage dans le contexte de l'exécuteur courant
-                    node {
-                        archiveArtifacts artifacts: 'trivy-report.txt', allowEmptyArchive: true
-                    }
+                    archiveArtifacts artifacts: 'trivy-report.txt', allowEmptyArchive: true
                 }
             }
         }
@@ -51,9 +47,7 @@ pipeline {
             }
             post {
                 always {
-                    node {
-                        archiveArtifacts artifacts: 'sbom-spdx.json', allowEmptyArchive: true
-                    }
+                    archiveArtifacts artifacts: 'sbom-spdx.json', allowEmptyArchive: true
                 }
             }
         }

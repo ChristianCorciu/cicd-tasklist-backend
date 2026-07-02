@@ -3,9 +3,9 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
-        SONAR_TOKEN            = credentials('sonar-token')
-        IMAGE_NAME              = "brbrbr9314/tasklist-backend"
-        IMAGE_TAG                = "${env.BUILD_NUMBER}"
+        SONAR_TOKEN           = credentials('sonar-token')
+        IMAGE_NAME            = "brbrbr9314/tasklist-backend"
+        IMAGE_TAG             = "${env.BUILD_NUMBER}"
     }
 
     options {
@@ -14,48 +14,58 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Install dependencies') {
-            steps {
-                sh 'npm ci'
-                sh 'npx prisma generate'
-            }
-        }
-
-        stage('Build (TypeScript)') {
-            steps {
-                sh 'npm run build'
-            }
-        }
-
-        stage('Unit tests') {
-            steps {
-                sh 'npm run test:coverage'
-            }
-            post {
-                always {
-                    junit allowEmptyResults: true, testResults: 'reports/junit.xml'
-                    archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true
+        // On utilise l'image Docker officielle de Node.js pour isoler l'environnement de build et de test
+        stage('Build & Test Runtime') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
                 }
             }
-        }
+            stages {
+                stage('Install dependencies') {
+                    steps {
+                        sh 'npm ci'
+                        sh 'npx prisma generate'
+                    }
+                }
 
-        stage('E2E tests') {
-            steps {
-                sh 'npm run test:e2e'
-            }
-        }
+                stage('Build (TypeScript)') {
+                    steps {
+                        sh 'npm run build'
+                    }
+                }
 
-        stage('SonarQube analysis') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh 'npx sonar-scanner -Dsonar.login=$SONAR_TOKEN'
+                stage('Unit tests') {
+                    steps {
+                        sh 'npm run test:coverage'
+                    }
+                    post {
+                        always {
+                            junit allowEmptyResults: true, testResults: 'reports/junit.xml'
+                            archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true
+                        }
+                    }
+                }
+
+                stage('E2E tests') {
+                    steps {
+                        sh 'npm run test:e2e'
+                    }
+                }
+
+                stage('SonarQube analysis') {
+                    steps {
+                        withSonarQubeEnv('SonarQube') {
+                            sh 'npx sonar-scanner -Dsonar.login=$SONAR_TOKEN'
+                        }
+                    }
                 }
             }
         }
@@ -109,6 +119,4 @@ pipeline {
             }
         }
     }
-
-   
 }
